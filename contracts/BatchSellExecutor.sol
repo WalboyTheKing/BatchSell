@@ -10,11 +10,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
  * @dev Interface for FourMeme bonding curve router
  */
 interface IFourMemeRouter {
-    function sellToken(
-        address token,
-        uint256 amount,
-        uint256 minBnbExpected
-    ) external returns (uint256 bnbReceived);
+    function sellToken(address token, uint256 amount, uint256 minBnbExpected) external returns (uint256 bnbReceived);
 }
 
 /**
@@ -117,12 +113,9 @@ contract BatchSellExecutor is ReentrancyGuard, Ownable {
      * @param _pancakeRouter PancakeSwap V2 router address
      * @param _enableFourMeme Initial state for FourMeme curve execution (defaults to false in production)
      */
-    constructor(
-        address _initialOwner,
-        address _fourMemeRouter,
-        address _pancakeRouter,
-        bool _enableFourMeme
-    ) Ownable(_initialOwner) {
+    constructor(address _initialOwner, address _fourMemeRouter, address _pancakeRouter, bool _enableFourMeme)
+        Ownable(_initialOwner)
+    {
         if (_initialOwner == address(0)) revert ZeroAddressProvided();
 
         allowFourMemeExecution = _enableFourMeme;
@@ -153,12 +146,12 @@ contract BatchSellExecutor is ReentrancyGuard, Ownable {
      * @param recipient Target account receiving the proceeds (defaults to msg.sender if address(0))
      * @param deadline Unix timestamp after which the transaction reverts
      */
-    function executeBatchSell(
-        SellOrder[] calldata orders,
-        uint256 minTotalBnbOut,
-        address recipient,
-        uint256 deadline
-    ) external nonReentrant whenNotPaused returns (uint256 totalBnbReceived) {
+    function executeBatchSell(SellOrder[] calldata orders, uint256 minTotalBnbOut, address recipient, uint256 deadline)
+        external
+        nonReentrant
+        whenNotPaused
+        returns (uint256 totalBnbReceived)
+    {
         if (block.timestamp > deadline) revert DeadlineExpired(deadline, block.timestamp);
 
         uint256 length = orders.length;
@@ -265,9 +258,10 @@ contract BatchSellExecutor is ReentrancyGuard, Ownable {
             path[0] = order.token;
             path[1] = weth;
 
-            IPancakeRouter02(order.routerTarget).swapExactTokensForETHSupportingFeeOnTransferTokens(
-                actualTokensReceived, order.minBnbOut, path, address(this), deadline
-            );
+            IPancakeRouter02(order.routerTarget)
+                .swapExactTokensForETHSupportingFeeOnTransferTokens(
+                    actualTokensReceived, order.minBnbOut, path, address(this), deadline
+                );
         } else {
             revert ProtocolNotSupported(order.protocol);
         }

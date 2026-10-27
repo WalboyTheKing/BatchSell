@@ -178,17 +178,17 @@ contract MockFourMemeRouter is IFourMemeRouter {
         enforceInternalSlippage = _enforce;
     }
 
-    function sellToken(
-        address token,
-        uint256 amount,
-        uint256 minBnbExpected
-    ) external override returns (uint256 bnbReceived) {
+    function sellToken(address token, uint256 amount, uint256 minBnbExpected)
+        external
+        override
+        returns (uint256 bnbReceived)
+    {
         IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
         bnbReceived = (amount * 1 ether) / (rate * 1e18);
         if (enforceInternalSlippage) {
             require(bnbReceived >= minBnbExpected, "MockFourMeme: Slippage exceeded");
         }
-        (bool sent, ) = msg.sender.call{value: bnbReceived}("");
+        (bool sent,) = msg.sender.call{value: bnbReceived}("");
         require(sent, "BNB send failed");
     }
 }
@@ -220,7 +220,7 @@ contract MockPancakeRouter is IPancakeRouter02 {
         IERC20(path[0]).transferFrom(msg.sender, address(this), amountIn);
         uint256 bnbOut = (amountIn * 1 ether) / (rate * 1e18);
         require(bnbOut >= amountOutMin, "MockPancake: Slippage exceeded");
-        (bool sent, ) = to.call{value: bnbOut}("");
+        (bool sent,) = to.call{value: bnbOut}("");
         require(sent, "Pancake BNB transfer failed");
     }
 }
@@ -245,7 +245,7 @@ contract MockReentrantAttacker {
 
     function setAttackOrders(BatchSellExecutor.SellOrder[] calldata orders) external {
         delete storedOrders;
-        for (uint i = 0; i < orders.length; i++) {
+        for (uint256 i = 0; i < orders.length; i++) {
             storedOrders.push(orders[i]);
         }
     }
@@ -435,7 +435,11 @@ contract BatchSellExecutorComprehensiveTest is Test {
         });
 
         vm.prank(user);
-        vm.expectRevert(abi.encodeWithSelector(BatchSellExecutor.IndividualSlippageExceeded.selector, address(tokenA), 1 ether, 1.5 ether));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                BatchSellExecutor.IndividualSlippageExceeded.selector, address(tokenA), 1 ether, 1.5 ether
+            )
+        );
         executor.executeBatchSell(orders, 1.5 ether, user, block.timestamp + 100);
     }
 
@@ -454,7 +458,11 @@ contract BatchSellExecutorComprehensiveTest is Test {
         });
 
         vm.prank(user);
-        vm.expectRevert(abi.encodeWithSelector(BatchSellExecutor.InsufficientTokenAllowance.selector, address(tokenA), 500 * 1e18, 1000 * 1e18));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                BatchSellExecutor.InsufficientTokenAllowance.selector, address(tokenA), 500 * 1e18, 1000 * 1e18
+            )
+        );
         executor.executeBatchSell(orders, 0.8 ether, user, block.timestamp + 100);
     }
 
@@ -475,7 +483,11 @@ contract BatchSellExecutorComprehensiveTest is Test {
             minBnbOut: 0.5 ether
         });
 
-        vm.expectRevert(abi.encodeWithSelector(BatchSellExecutor.InsufficientTokenBalance.selector, address(tokenA), 100 * 1e18, 1000 * 1e18));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                BatchSellExecutor.InsufficientTokenBalance.selector, address(tokenA), 100 * 1e18, 1000 * 1e18
+            )
+        );
         executor.executeBatchSell(orders, 0.5 ether, poorUser, block.timestamp + 100);
         vm.stopPrank();
     }
@@ -698,7 +710,11 @@ contract BatchSellExecutorComprehensiveTest is Test {
         });
 
         vm.prank(user);
-        vm.expectRevert(abi.encodeWithSelector(BatchSellExecutor.IndividualSlippageExceeded.selector, address(tokenB), 0.1 ether, 0.5 ether));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                BatchSellExecutor.IndividualSlippageExceeded.selector, address(tokenB), 0.1 ether, 0.5 ether
+            )
+        );
         executor.executeBatchSell(orders, 1.5 ether, user, block.timestamp + 100);
     }
 
@@ -739,7 +755,9 @@ contract BatchSellExecutorComprehensiveTest is Test {
         });
 
         vm.prank(user);
-        vm.expectRevert(abi.encodeWithSelector(BatchSellExecutor.BnbTransferFailed.selector, address(rejector), 1 ether));
+        vm.expectRevert(
+            abi.encodeWithSelector(BatchSellExecutor.BnbTransferFailed.selector, address(rejector), 1 ether)
+        );
         executor.executeBatchSell(orders, 0.9 ether, address(rejector), block.timestamp + 100);
     }
 
@@ -758,7 +776,11 @@ contract BatchSellExecutorComprehensiveTest is Test {
         });
 
         vm.prank(stranger);
-        vm.expectRevert(abi.encodeWithSelector(BatchSellExecutor.InsufficientTokenAllowance.selector, address(tokenA), 0, 1000 * 1e18));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                BatchSellExecutor.InsufficientTokenAllowance.selector, address(tokenA), 0, 1000 * 1e18
+            )
+        );
         executor.executeBatchSell(orders, 0.5 ether, stranger, block.timestamp + 100);
     }
 
@@ -766,7 +788,7 @@ contract BatchSellExecutorComprehensiveTest is Test {
     function test_23_Security_BatchSizeExceeded() public {
         uint256 oversized = 26; // MAX_BATCH_SIZE is 25
         BatchSellExecutor.SellOrder[] memory orders = new BatchSellExecutor.SellOrder[](oversized);
-        for (uint i = 0; i < oversized; i++) {
+        for (uint256 i = 0; i < oversized; i++) {
             orders[i] = BatchSellExecutor.SellOrder({
                 token: address(tokenA),
                 protocol: BatchSellExecutor.ProtocolType.FourMemeCurve,
@@ -882,7 +904,7 @@ contract BatchSellExecutorComprehensiveTest is Test {
     function test_28_Security_DirectBnbDepositReverts() public {
         vm.deal(user, 5 ether);
         vm.prank(user);
-        (bool sent, ) = address(executor).call{value: 1 ether}("");
+        (bool sent,) = address(executor).call{value: 1 ether}("");
         assertFalse(sent);
     }
 
@@ -927,7 +949,9 @@ contract BatchSellExecutorComprehensiveTest is Test {
 
         uint256 expiredDeadline = block.timestamp - 1;
         vm.prank(user);
-        vm.expectRevert(abi.encodeWithSelector(BatchSellExecutor.DeadlineExpired.selector, expiredDeadline, block.timestamp));
+        vm.expectRevert(
+            abi.encodeWithSelector(BatchSellExecutor.DeadlineExpired.selector, expiredDeadline, block.timestamp)
+        );
         executor.executeBatchSell(orders, 0.5 ether, user, expiredDeadline);
     }
 

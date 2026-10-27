@@ -114,6 +114,52 @@ contract MockNonStandardERC20 {
 }
 
 /**
+ * @dev Mock Fee-On-Transfer ERC20 (e.g. 5% transfer fee common in BSC memecoins)
+ */
+contract MockFeeOnTransferERC20 is IERC20 {
+    string public name = "Fee Token";
+    string public symbol = "FEE";
+    uint8 public decimals = 18;
+    uint256 public feeBps = 500; // 5% fee
+
+    mapping(address => uint256) public override balanceOf;
+    mapping(address => mapping(address => uint256)) public override allowance;
+
+    function totalSupply() external pure override returns (uint256) {
+        return 1_000_000_000 * 1e18;
+    }
+
+    function mint(address to, uint256 amount) external {
+        balanceOf[to] += amount;
+    }
+
+    function transfer(address to, uint256 amount) external override returns (bool) {
+        uint256 fee = (amount * feeBps) / 10000;
+        uint256 net = amount - fee;
+        require(balanceOf[msg.sender] >= amount, "low balance");
+        balanceOf[msg.sender] -= amount;
+        balanceOf[to] += net;
+        return true;
+    }
+
+    function transferFrom(address from, address to, uint256 amount) external override returns (bool) {
+        uint256 fee = (amount * feeBps) / 10000;
+        uint256 net = amount - fee;
+        require(balanceOf[from] >= amount, "low balance");
+        require(allowance[from][msg.sender] >= amount, "low allowance");
+        allowance[from][msg.sender] -= amount;
+        balanceOf[from] -= amount;
+        balanceOf[to] += net;
+        return true;
+    }
+
+    function approve(address spender, uint256 amount) external override returns (bool) {
+        allowance[msg.sender][spender] = amount;
+        return true;
+    }
+}
+
+/**
  * @dev Mock FourMeme Bonding Curve Router
  */
 contract MockFourMemeRouter is IFourMemeRouter {
@@ -806,5 +852,120 @@ contract BatchSellExecutorComprehensiveTest is Test {
         assertEq(address(executor).balance, 0, "Executor must not hold residual BNB");
         assertEq(tokenA.balanceOf(address(executor)), 0, "Executor must not hold residual tokenA");
         assertEq(tokenB.balanceOf(address(executor)), 0, "Executor must not hold residual tokenB");
+    }
+
+    // 27. Prise en charge des tokens à frais de transfert (Fee-On-Transfer)
+    function test_27_Security_FeeOnTransferTokenHandledCorrectly() public {
+        MockFeeOnTransferERC20 feeToken = new MockFeeOnTransferERC20();
+        feeToken.mint(user, 10_000 * 1e18);
+
+        vm.prank(user);
+        feeToken.approve(address(executor), 10_000 * 1e18);
+
+        // Sending 2000 tokens with 5% tax -> executor receives 1900 tokens
+        // With rate=2000 tokens/BNB on pancakeRouter, 1900 tokens = 0.95 BNB
+        BatchSellExecutor.SellOrder[] memory orders = new BatchSellExecutor.SellOrder[](1);
+        orders[0] = BatchSellExecutor.SellOrder({
+            token: address(feeToken),
+            protocol: BatchSellExecutor.ProtocolType.PancakeSwapV2,
+            routerTarget: address(pancakeRouter),
+            tokenAmount: 2000 * 1e18,
+            minBnbOut: 0.9 ether
+        });
+
+        vm.prank(user);
+        uint256 bnbOut = executor.executeBatchSell(orders, 0.9 ether, user, block.timestamp + 100);
+        assertEq(bnbOut, 0.95 ether);
+    }
+
+    // 28. Rejet des dépôts directs de BNB hors exécution
+    function test_28_Security_DirectBnbDepositReverts() public {
+        vm.deal(user, 5 ether);
+        vm.prank(user);
+        (bool sent, ) = address(executor).call{value: 1 ether}("");
+        assertFalse(sent);
+    }
+
+    // 29. Rejet si FourMeme est désactivé
+    function test_29_Security_FourMemeDisabledRevert() public {
+        vm.prank(owner);
+        executor.setFourMemeExecution(false); // disable FourMeme
+
+        BatchSellExecutor.SellOrder[] memory orders = new BatchSellExecutor.SellOrder[](1);
+        orders[0] = BatchSellExecutor.SellOrder({
+            token: address(tokenA),
+            protocol: BatchSellExecutor.ProtocolType.FourMemeCurve,
+            routerTarget: address(fourMemeRouter),
+            tokenAmount: 1000 * 1e18,
+            minBnbOut: 0.5 ether
+        });
+
+        vm.prank(user);
+        vm.expectRevert(BatchSellExecutor.FourMemeExecutionDisabled.selector);
+        executor.executeBatchSell(orders, 0.5 ether, user, block.timestamp + 100);
+    }
+
+    // 30. Rejet d'un lot vide (EmptyBatch)
+    function test_30_Security_EmptyBatchRevert() public {
+        BatchSellExecutor.SellOrder[] memory emptyOrders = new BatchSellExecutor.SellOrder[](0);
+
+        vm.prank(user);
+        vm.expectRevert(BatchSellExecutor.EmptyBatch.selector);
+        executor.executeBatchSell(emptyOrders, 0, user, block.timestamp + 100);
+    }
+
+    // 31. Rejet si la date limite est expirée (DeadlineExpired)
+    function test_31_Security_DeadlineExpiredRevert() public {
+        BatchSellExecutor.SellOrder[] memory orders = new BatchSellExecutor.SellOrder[](1);
+        orders[0] = BatchSellExecutor.SellOrder({
+            token: address(tokenA),
+            protocol: BatchSellExecutor.ProtocolType.FourMemeCurve,
+            routerTarget: address(fourMemeRouter),
+            tokenAmount: 1000 * 1e18,
+            minBnbOut: 0.5 ether
+        });
+
+        uint256 expiredDeadline = block.timestamp - 1;
+        vm.prank(user);
+        vm.expectRevert(abi.encodeWithSelector(BatchSellExecutor.DeadlineExpired.selector, expiredDeadline, block.timestamp));
+        executor.executeBatchSell(orders, 0.5 ether, user, expiredDeadline);
+    }
+
+    // 32. Rejet si montant nul (ZeroAmountProvided)
+    function test_32_Security_ZeroAmountRevert() public {
+        BatchSellExecutor.SellOrder[] memory orders = new BatchSellExecutor.SellOrder[](1);
+        orders[0] = BatchSellExecutor.SellOrder({
+            token: address(tokenA),
+            protocol: BatchSellExecutor.ProtocolType.FourMemeCurve,
+            routerTarget: address(fourMemeRouter),
+            tokenAmount: 0,
+            minBnbOut: 0
+        });
+
+        vm.prank(user);
+        vm.expectRevert(BatchSellExecutor.ZeroAmountProvided.selector);
+        executor.executeBatchSell(orders, 0, user, block.timestamp + 100);
+    }
+
+    // 33. Conservation du solde préexistant (aucun détournement de fonds tiers)
+    function test_33_Security_PreExistingContractBalancePreserved() public {
+        vm.deal(address(executor), 2 ether);
+
+        BatchSellExecutor.SellOrder[] memory orders = new BatchSellExecutor.SellOrder[](1);
+        orders[0] = BatchSellExecutor.SellOrder({
+            token: address(tokenA),
+            protocol: BatchSellExecutor.ProtocolType.FourMemeCurve,
+            routerTarget: address(fourMemeRouter),
+            tokenAmount: 1000 * 1e18,
+            minBnbOut: 0.9 ether
+        });
+
+        uint256 userBefore = user.balance;
+        vm.prank(user);
+        uint256 bnbOut = executor.executeBatchSell(orders, 0.9 ether, user, block.timestamp + 100);
+
+        assertEq(bnbOut, 1 ether);
+        assertEq(user.balance - userBefore, 1 ether);
+        assertEq(address(executor).balance, 2 ether);
     }
 }

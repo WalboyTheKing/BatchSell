@@ -2,6 +2,9 @@ node_modules/
 build/
 dist/
 coverage/
+contracts/out/
+cache/
+contracts/cache/
 .DS_Store
 *.log
 .env*

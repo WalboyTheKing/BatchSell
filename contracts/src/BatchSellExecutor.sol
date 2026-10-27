@@ -10,11 +10,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
  * @dev Interface for FourMeme bonding curve router
  */
 interface IFourMemeRouter {
-    function sellToken(
-        address token,
-        uint256 amount,
-        uint256 minBnbExpected
-    ) external returns (uint256 bnbReceived);
+    function sellToken(address token, uint256 amount, uint256 minBnbExpected) external returns (uint256 bnbReceived);
 }
 
 /**
@@ -36,8 +32,8 @@ interface IPancakeRouter02 {
  * @title BatchSellExecutor
  * @notice Secure, non-custodial batch sell executor for BNB Chain.
  * Enables atomic multi-token sales on verified routers (PancakeSwap DEX and FourMeme bonding curve).
- * @dev Strictly adheres to Checks-Effects-Interactions, reentrancy guards, and router whitelisting.
- * Holds ZERO custody: all output BNB is immediately forwarded to the validated recipient.
+ * @dev Strictly adheres to Checks-Effects-Interactions, reentrancy guards, fee-on-transfer token accounting,
+ * and router whitelisting. Holds ZERO custody: all output BNB is immediately forwarded to the validated recipient.
  */
 contract BatchSellExecutor is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
@@ -48,7 +44,7 @@ contract BatchSellExecutor is ReentrancyGuard, Ownable {
     // Circuit breaker pause
     bool public paused;
 
-    // Execution safety switch for FourMeme bonding curve
+    // Execution safety switch for FourMeme bonding curve (disabled by default until verified)
     bool public allowFourMemeExecution;
 
     // Whitelisted execution targets to prevent arbitrary external calls
@@ -102,6 +98,7 @@ contract BatchSellExecutor is ReentrancyGuard, Ownable {
     error InsufficientTokenBalance(address token, uint256 currentBalance, uint256 required);
     error FourMemeExecutionDisabled();
     error BnbTransferFailed(address recipient, uint256 amount);
+    error DirectBnbDepositNotAllowed();
     error ProtocolNotSupported(ProtocolType protocol);
 
     modifier whenNotPaused() {
@@ -114,14 +111,11 @@ contract BatchSellExecutor is ReentrancyGuard, Ownable {
      * @param _initialOwner Address receiving ownership for administration
      * @param _fourMemeRouter FourMeme bonding curve router (or address(0) if unconfigured)
      * @param _pancakeRouter PancakeSwap V2 router address
-     * @param _enableFourMeme Initial state for FourMeme curve execution
+     * @param _enableFourMeme Initial state for FourMeme curve execution (defaults to false in production)
      */
-    constructor(
-        address _initialOwner,
-        address _fourMemeRouter,
-        address _pancakeRouter,
-        bool _enableFourMeme
-    ) Ownable(_initialOwner) {
+    constructor(address _initialOwner, address _fourMemeRouter, address _pancakeRouter, bool _enableFourMeme)
+        Ownable(_initialOwner)
+    {
         if (_initialOwner == address(0)) revert ZeroAddressProvided();
 
         allowFourMemeExecution = _enableFourMeme;
@@ -136,7 +130,14 @@ contract BatchSellExecutor is ReentrancyGuard, Ownable {
         }
     }
 
-    receive() external payable {}
+    /**
+     * @notice Rejects any arbitrary or accidental native BNB deposits outside of active swaps
+     */
+    receive() external payable {
+        if (!_reentrancyGuardEntered()) {
+            revert DirectBnbDepositNotAllowed();
+        }
+    }
 
     /**
      * @notice Execute an atomic batch of token sales across verified routers
@@ -145,23 +146,22 @@ contract BatchSellExecutor is ReentrancyGuard, Ownable {
      * @param recipient Target account receiving the proceeds (defaults to msg.sender if address(0))
      * @param deadline Unix timestamp after which the transaction reverts
      */
-    function executeBatchSell(
-        SellOrder[] calldata orders,
-        uint256 minTotalBnbOut,
-        address recipient,
-        uint256 deadline
-    ) external nonReentrant whenNotPaused returns (uint256 totalBnbReceived) {
+    function executeBatchSell(SellOrder[] calldata orders, uint256 minTotalBnbOut, address recipient, uint256 deadline)
+        external
+        nonReentrant
+        whenNotPaused
+        returns (uint256 totalBnbReceived)
+    {
         if (block.timestamp > deadline) revert DeadlineExpired(deadline, block.timestamp);
-        
+
         uint256 length = orders.length;
         if (length == 0) revert EmptyBatch();
         if (length > MAX_BATCH_SIZE) revert BatchSizeExceeded(length, MAX_BATCH_SIZE);
 
         address targetRecipient = recipient == address(0) ? msg.sender : recipient;
-
         uint256 initialBnbBalance = address(this).balance;
 
-        for (uint256 i = 0; i < length; ) {
+        for (uint256 i = 0; i < length;) {
             SellOrder calldata order = orders[i];
             _executeSellOrder(order, deadline);
 
@@ -178,13 +178,7 @@ contract BatchSellExecutor is ReentrancyGuard, Ownable {
         }
 
         // Emit batch event prior to transfer (Checks-Effects-Interactions)
-        emit BatchExecuted(
-            msg.sender,
-            targetRecipient,
-            totalBnbReceived,
-            length,
-            block.timestamp
-        );
+        emit BatchExecuted(msg.sender, targetRecipient, totalBnbReceived, length, block.timestamp);
 
         // Immediate forward of 100% BNB to recipient (Strict Non-Custodial)
         _sendBnb(targetRecipient, totalBnbReceived);
@@ -196,13 +190,14 @@ contract BatchSellExecutor is ReentrancyGuard, Ownable {
      * @param recipient Target account receiving the BNB
      * @param deadline Unix timestamp after which transaction reverts
      */
-    function executeSingleSell(
-        SellOrder calldata order,
-        address recipient,
-        uint256 deadline
-    ) external nonReentrant whenNotPaused returns (uint256 bnbReceived) {
+    function executeSingleSell(SellOrder calldata order, address recipient, uint256 deadline)
+        external
+        nonReentrant
+        whenNotPaused
+        returns (uint256 bnbReceived)
+    {
         if (block.timestamp > deadline) revert DeadlineExpired(deadline, block.timestamp);
-        
+
         address targetRecipient = recipient == address(0) ? msg.sender : recipient;
         uint256 initialBnbBalance = address(this).balance;
 
@@ -214,24 +209,17 @@ contract BatchSellExecutor is ReentrancyGuard, Ownable {
         }
 
         emit SingleSellExecuted(
-            msg.sender,
-            targetRecipient,
-            order.token,
-            order.tokenAmount,
-            bnbReceived,
-            block.timestamp
+            msg.sender, targetRecipient, order.token, order.tokenAmount, bnbReceived, block.timestamp
         );
 
         _sendBnb(targetRecipient, bnbReceived);
     }
 
     /**
-     * @dev Internal helper executing a single order with strict individual slippage validation
+     * @dev Internal helper executing a single order with strict fee-on-transfer accounting
+     * and individual slippage validation.
      */
-    function _executeSellOrder(
-        SellOrder calldata order,
-        uint256 deadline
-    ) internal {
+    function _executeSellOrder(SellOrder calldata order, uint256 deadline) internal {
         if (order.token == address(0)) revert ZeroAddressProvided();
         if (order.tokenAmount == 0) revert ZeroAmountProvided();
         if (!isWhitelistedRouter[order.routerTarget]) {
@@ -248,11 +236,14 @@ contract BatchSellExecutor is ReentrancyGuard, Ownable {
             revert InsufficientTokenBalance(order.token, balance, order.tokenAmount);
         }
 
-        // Pull tokens from user to executor
+        // Accurately measure tokens received to support fee-on-transfer tokens
+        uint256 tokenBalBefore = IERC20(order.token).balanceOf(address(this));
         IERC20(order.token).safeTransferFrom(msg.sender, address(this), order.tokenAmount);
+        uint256 actualTokensReceived = IERC20(order.token).balanceOf(address(this)) - tokenBalBefore;
+        if (actualTokensReceived == 0) revert ZeroAmountProvided();
 
-        // Approve router for exact amount
-        IERC20(order.token).forceApprove(order.routerTarget, order.tokenAmount);
+        // Approve router for exact amount received
+        IERC20(order.token).forceApprove(order.routerTarget, actualTokensReceived);
 
         uint256 bnbBefore = address(this).balance;
 
@@ -260,11 +251,7 @@ contract BatchSellExecutor is ReentrancyGuard, Ownable {
             if (!allowFourMemeExecution) {
                 revert FourMemeExecutionDisabled();
             }
-            IFourMemeRouter(order.routerTarget).sellToken(
-                order.token,
-                order.tokenAmount,
-                order.minBnbOut
-            );
+            IFourMemeRouter(order.routerTarget).sellToken(order.token, actualTokensReceived, order.minBnbOut);
         } else if (order.protocol == ProtocolType.PancakeSwapV2) {
             address weth = IPancakeRouter02(order.routerTarget).WETH();
             address[] memory path = new address[](2);
@@ -273,11 +260,7 @@ contract BatchSellExecutor is ReentrancyGuard, Ownable {
 
             IPancakeRouter02(order.routerTarget)
                 .swapExactTokensForETHSupportingFeeOnTransferTokens(
-                    order.tokenAmount,
-                    order.minBnbOut,
-                    path,
-                    address(this),
-                    deadline
+                    actualTokensReceived, order.minBnbOut, path, address(this), deadline
                 );
         } else {
             revert ProtocolNotSupported(order.protocol);
@@ -300,7 +283,7 @@ contract BatchSellExecutor is ReentrancyGuard, Ownable {
      */
     function _sendBnb(address recipient, uint256 amount) internal {
         if (amount == 0) return;
-        (bool sent, ) = payable(recipient).call{value: amount}("");
+        (bool sent,) = payable(recipient).call{value: amount}("");
         if (!sent) revert BnbTransferFailed(recipient, amount);
     }
 

@@ -1,0 +1,6 @@
+{
+  "name": "BatchSell - Agentic Wallet Batching Infrastructure",
+  "description": "Infrastructure de transactions groupées sécurisées pour les wallets IA et traders sur BNB Chain : audit fourMeme, simulation de batch, gestion d'allowance, EIP-7702 & executor atomique.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,938 @@
+# PROJET : BATCHSELL
+## Infrastructure de transactions groupées sécurisées pour les wallets IA sur BNB Chain
+
+### 1. TON RÔLE
+
+Tu es un ingénieur logiciel Web3 senior, architecte blockchain et développeur Solidity spécialisé dans :
+
+- BNB Smart Chain.
+- EVM et ERC-20.
+- Account Abstraction.
+- EIP-7702.
+- Wallets MPC et wallets agentiques.
+- Smart contracts sécurisés.
+- Exécution groupée de transactions.
+- Protocoles de trading on-chain.
+- fourMeme et les mécanismes de bonding curve.
+- Next.js, TypeScript, viem et Solidity.
+- Simulation de transactions et analyse des risques.
+- Tests de sécurité et développement de produits Web3 prêts pour la production.
+
+Tu dois concevoir et développer un produit fonctionnel, testable, documenté et évolutif.
+
+Ne te contente pas de produire une architecture théorique ou des exemples de code incomplets. Travaille sur le projet, crée les fichiers nécessaires, implémente les fonctionnalités, exécute les tests et corrige les problèmes rencontrés.
+
+Si tu disposes d'un accès au terminal, utilise-le pour installer les dépendances, compiler les contrats, lancer les tests et vérifier le build.
+
+Ne prétends jamais qu'une fonctionnalité est opérationnelle si elle n'a pas été implémentée et testée.
+
+---
+
+# 2. CONTEXTE DU PROBLÈME
+
+J'ai utilisé Binance AI Pro avec Binance Agentic Wallet sur BNB Chain.
+
+Le wallet permet à un agent IA de préparer et d'exécuter des opérations on-chain à partir de commandes en langage naturel.
+
+Le problème apparaît lorsque l'utilisateur veut vendre plusieurs tokens fourMeme, notamment pendant leur phase de marché interne ou de bonding curve.
+
+Selon le parcours observé :
+
+1. L'utilisateur demande à l'agent de vendre plusieurs tokens.
+2. L'agent prépare les appels nécessaires pour chaque token.
+3. Chaque token peut nécessiter une autorisation ERC-20 distincte.
+4. Le wallet demande des confirmations successives.
+5. L'utilisateur doit répéter les opérations manuellement.
+
+Pour un portefeuille contenant de nombreux tokens, cette expérience devient longue et pénible.
+
+Le problème à résoudre est la granularité excessive des confirmations et l'absence éventuelle d'un mécanisme de batching adapté.
+
+Le but n'est PAS de supprimer les protections du wallet.
+
+Le but est de regrouper les opérations compatibles, de présenter toutes les conséquences à l'utilisateur et de réduire le nombre de transactions et de confirmations lorsque la technologie le permet.
+
+Les mécanismes exacts de vente et d'autorisation doivent être vérifiés à partir de la documentation et des contrats officiels. Ne considère pas les observations ci-dessus comme une preuve que tous les tokens fourMeme fonctionnent de manière identique.
+
+---
+
+# 3. VISION DU PRODUIT
+
+Nom du projet : BatchSell.
+
+Nom descriptif : Agentic Wallet Transaction Batching Infrastructure.
+
+Positionnement :
+
+« Préparer, vérifier et exécuter plusieurs opérations on-chain à partir d'un plan transparent, avec un minimum de transactions et de confirmations, sans sacrifier le contrôle de l'utilisateur. »
+
+Le premier cas d'utilisation est la vente groupée de tokens fourMeme sur BNB Chain.
+
+L'architecture doit permettre d'ajouter ultérieurement d'autres protocoles et d'autres types d'opérations.
+
+Le produit doit être indépendant du wallet dans sa conception.
+
+Binance Agentic Wallet constitue une intégration cible, mais le développement ne doit pas dépendre d'une API Binance non vérifiée.
+
+---
+
+# 4. OBJECTIFS FONCTIONNELS
+
+Le produit doit permettre à un utilisateur de :
+
+1. Connecter un wallet compatible.
+2. Consulter les tokens ERC-20 détenus sur BNB Chain.
+3. Identifier les tokens compatibles avec le protocole pris en charge.
+4. Sélectionner plusieurs tokens.
+5. Définir les quantités à vendre.
+6. Consulter les allowances existantes.
+7. Identifier les autorisations supplémentaires nécessaires.
+8. Construire un plan d'exécution groupé.
+9. Simuler les opérations avant leur envoi.
+10. Consulter les montants estimés, les frais et les risques.
+11. Vérifier chaque opération individuellement.
+12. Confirmer le plan complet.
+13. Exécuter les opérations avec le mécanisme compatible avec le wallet.
+14. Consulter le résultat de chaque opération.
+15. Vérifier les reçus de transaction et les soldes après exécution.
+
+Le système doit réduire le nombre d'interactions lorsque c'est techniquement possible.
+
+Il ne doit jamais promettre une signature unique si le wallet, le protocole ou les contraintes EVM rendent cela impossible.
+
+---
+
+# 5. PHASE OBLIGATOIRE : AUDIT DE FAISABILITÉ
+
+Avant de développer le moteur d'exécution, effectue une étude technique.
+
+Crée le fichier :
+
+`docs/FEASIBILITY.md`
+
+Ce document doit répondre aux questions suivantes.
+
+## 5.1. Architecture de fourMeme
+
+À partir des sources officielles disponibles, identifie :
+
+- Les contrats pertinents.
+- Les fonctions utilisées pour vendre les tokens.
+- Les paramètres requis par ces fonctions.
+- Le mécanisme d'autorisation ERC-20.
+- Les différences éventuelles entre marché interne et marché externe.
+- Les contraintes liées à la bonding curve.
+- Les événements permettant de vérifier les ventes.
+- Les conditions d'échec.
+- Les frais et mécanismes de slippage.
+
+Pour chaque information importante, indique la source et la méthode de vérification.
+
+Si les informations nécessaires ne sont pas accessibles, indique précisément ce qui manque.
+
+N'invente aucune adresse de contrat.
+
+N'utilise pas une adresse provenant d'un tutoriel non officiel sans vérification indépendante.
+
+## 5.2. Analyse du problème Multicall
+
+Explique et teste le comportement de `msg.sender` lors des appels à travers Multicall3.
+
+Vérifie si les contrats ERC-20 voient :
+
+- Le compte de l'utilisateur.
+- Le contrat Multicall.
+- Un autre contrat intermédiaire.
+
+Démontre pourquoi le mécanisme choisi permet ou ne permet pas d'effectuer les autorisations nécessaires.
+
+Ne suppose pas que Multicall3 résout automatiquement le problème.
+
+## 5.3. Analyse EIP-7702
+
+Vérifie :
+
+- Le support du mécanisme sur le réseau ciblé.
+- Les exigences des transactions de délégation.
+- Le fonctionnement du code délégué.
+- Les possibilités de batching.
+- Les implications de sécurité.
+- Les mécanismes de révocation.
+- Les autorisations ERC-20 persistantes.
+- Les coûts de gas.
+- Les limites de compatibilité des wallets.
+
+Distingue clairement le support d'EIP-7702 par la blockchain du support de cette fonctionnalité par un wallet particulier.
+
+## 5.4. Compatibilité Binance Agentic Wallet
+
+Consulte les documentations officielles disponibles pour Binance Agentic Wallet et Binance AI Pro.
+
+Vérifie l'existence et la disponibilité réelle de :
+
+- Connecteurs wallet.
+- Interfaces de signature.
+- API de soumission de transactions.
+- Prise en charge d'EIP-7702.
+- Mécanismes de transaction groupée.
+- SDK ou outils destinés aux développeurs.
+
+N'invente pas de méthode, de package, de SDK ou d'endpoint.
+
+Si une intégration directe n'est pas possible avec les interfaces accessibles, crée une architecture d'adaptation et documente les limites.
+
+L'utilisateur ne doit jamais avoir à communiquer sa clé privée ou sa phrase de récupération à l'application.
+
+## 5.5. Décision technique
+
+À la fin de l'audit, compare au minimum :
+
+A. Transactions ERC-20 classiques.
+
+B. Batching via un contrat executor.
+
+C. EIP-7702 avec code de délégation.
+
+D. Mécanisme de compte intelligent compatible, si pertinent.
+
+Pour chaque solution, compare :
+
+- Nombre de transactions.
+- Nombre de signatures ou confirmations.
+- Coût du gas.
+- Compatibilité avec les tokens.
+- Compatibilité avec les wallets.
+- Complexité de développement.
+- Risques de sécurité.
+- Facilité de révocation.
+- Possibilité d'exécution atomique.
+
+Choisis la solution la plus adaptée au MVP.
+
+Ne choisis pas EIP-7702 uniquement parce qu'il s'agit de la technologie la plus récente.
+
+---
+
+# 6. STACK TECHNIQUE
+
+Utilise les technologies suivantes, sauf si l'audit démontre une incompatibilité importante.
+
+## Frontend
+
+- Next.js.
+- React.
+- TypeScript strict.
+- Tailwind CSS.
+- Composants accessibles et responsive.
+- viem pour les interactions EVM.
+- wagmi si nécessaire pour la connexion aux wallets.
+
+## Smart contracts
+
+- Solidity.
+- Foundry.
+- Tests unitaires.
+- Tests d'intégration.
+- Fuzzing.
+- Vérification statique lorsque possible.
+
+## Infrastructure
+
+- BNB Chain Testnet pour les tests initiaux.
+- Configuration séparée pour le réseau principal.
+- RPC configurable par variable d'environnement.
+- Simulation des transactions.
+- Journalisation des opérations.
+- Indexation minimale des événements nécessaires.
+
+## Qualité
+
+- ESLint.
+- TypeScript strict.
+- Tests automatisés.
+- Gestion explicite des erreurs.
+- Documentation technique.
+
+N'introduis pas de dépendance inutile.
+
+Utilise les versions stables et compatibles au moment du développement. Vérifie leur disponibilité avant de les installer.
+
+---
+
+# 7. ARCHITECTURE LOGICIELLE
+
+Organise le projet en modules indépendants.
+
+Structure indicative :
+
+batchsell/
+├── app/
+│   ├── page.tsx
+│   ├── layout.tsx
+│   ├── tokens/
+│   ├── review/
+│   ├── history/
+│   └── settings/
+├── components/
+│   ├── wallet/
+│   ├── tokens/
+│   ├── batch/
+│   ├── simulation/
+│   ├── security/
+│   └── ui/
+├── lib/
+│   ├── wallet/
+│   ├── chain/
+│   ├── tokens/
+│   ├── protocols/
+│   ├── batch/
+│   ├── simulation/
+│   └── security/
+├── contracts/
+│   ├── src/
+│   ├── test/
+│   └── script/
+├── config/
+│   ├── chains.ts
+│   ├── protocols.ts
+│   └── token-registry.ts
+├── docs/
+│   ├── FEASIBILITY.md
+│   ├── ARCHITECTURE.md
+│   ├── SECURITY.md
+│   └── BINANCE_INTEGRATION.md
+├── test/
+├── .env.example
+├── foundry.toml
+├── package.json
+└── README.md
+
+Adapte cette structure si nécessaire, mais conserve la séparation entre l'interface, la logique métier, les adaptateurs de protocole et les contrats.
+
+---
+
+# 8. MODULE DE CONNEXION WALLET
+
+Développe un module qui :
+
+- Détecte les wallets compatibles.
+- Permet la connexion et la déconnexion.
+- Vérifie le réseau courant.
+- Demande le changement de réseau lorsque nécessaire.
+- Récupère l'adresse publique.
+- Consulte le solde BNB.
+- Lit les soldes ERC-20.
+- Consulte les allowances.
+- Gère les erreurs de connexion.
+- Gère le rejet d'une demande de signature.
+- Ne demande jamais la clé privée de l'utilisateur.
+
+Utilise une architecture de type `WalletAdapter`.
+
+Définis une interface commune permettant d'ajouter ultérieurement :
+
+- Un wallet EIP-1193 compatible.
+- Un wallet compatible avec les mécanismes de batching retenus.
+- Une intégration Binance officielle si les interfaces nécessaires sont disponibles.
+
+Ne crée pas de faux connecteur Binance pour donner l'impression que l'intégration existe.
+
+Si l'intégration directe Binance n'est pas réalisable, le produit doit continuer à fonctionner avec les wallets compatibles disponibles.
+
+---
+
+# 9. MODULE DE DÉCOUVERTE DES TOKENS
+
+Crée un module de découverte des tokens.
+
+Il doit :
+
+1. Récupérer les tokens connus du compte lorsque des données fiables sont disponibles.
+2. Permettre l'ajout manuel d'une adresse de token.
+3. Lire le solde et les décimales ERC-20.
+4. Vérifier les informations du contrat.
+5. Lire l'allowance envers le contrat de trading.
+6. Distinguer les tokens identifiés, vérifiés et non vérifiés.
+7. Détecter les erreurs de lecture.
+8. Éviter de considérer un token comme compatible sur la seule base de son nom ou de son symbole.
+
+Ne suppose pas qu'un RPC permet de découvrir automatiquement tous les tokens détenus par une adresse.
+
+Documente la source utilisée pour l'indexation et prévois une solution de remplacement.
+
+---
+
+# 10. MODULE D'ADAPTATION FOURMEME
+
+Crée une interface générique de protocole.
+
+Par exemple :
+
+export interface TradingProtocolAdapter {
+  readonly protocolId: string;
+
+  isSupportedToken(
+    tokenAddress: `0x${string}`
+  ): Promise<{
+    supported: boolean;
+    reason?: string;
+  }>;
+
+  getTokenBalance(
+    tokenAddress: `0x${string}`,
+    owner: `0x${string}`
+  ): Promise<bigint>;
+
+  getAllowance(
+    tokenAddress: `0x${string}`,
+    owner: `0x${string}`
+  ): Promise<bigint>;
+
+  buildSellPlan(
+    input: SellPlanInput
+  ): Promise<SellPlan>;
+
+  simulateSellPlan(
+    plan: SellPlan
+  ): Promise<SimulationResult>;
+}
+
+Il s'agit d'une interface indicative : adapte les types et méthodes à l'implémentation réelle.
+
+L'adaptateur fourMeme doit être développé uniquement après identification des véritables fonctions et contrats nécessaires.
+
+N'invente pas de fonction de vente.
+
+N'utilise pas une adresse de trading fictive en production.
+
+N'assume pas que tous les tokens fourMeme utilisent nécessairement le même chemin de vente.
+
+Si certaines informations restent inconnues, crée un adaptateur explicitement marqué comme incomplet et bloque l'exécution réelle.
+
+---
+
+# 11. MODULE BATCH BUILDER
+
+Crée un moteur qui construit un plan d'exécution pour plusieurs tokens.
+
+Chaque opération doit posséder au minimum :
+
+- Identifiant.
+- Adresse du token.
+- Montant à vendre.
+- Contrat cible.
+- Fonction appelée.
+- Paramètres de l'appel.
+- Autorisation nécessaire ou déjà disponible.
+- Montant maximal autorisé.
+- Estimation du résultat.
+- Limite de slippage.
+- Estimation du gas.
+- Résultat de la simulation.
+- Niveau de risque.
+- État de validation.
+
+Le moteur doit déterminer :
+
+1. Quelles autorisations existent déjà.
+2. Quelles autorisations sont nécessaires.
+3. Quelles ventes peuvent être regroupées.
+4. Quelles opérations doivent rester séparées.
+5. Quel mécanisme d'exécution est compatible.
+6. Si le plan dépasse les limites de sécurité.
+
+Il doit construire un plan explicite avant toute demande de signature.
+
+Ne déclenche aucune transaction pendant la simple sélection des tokens.
+
+---
+
+# 12. APPROVAL ENGINE
+
+Développe un module de gestion des allowances ERC-20.
+
+Règles obligatoires :
+
+- Ne pas demander une autorisation illimitée par défaut.
+- Vérifier l'allowance existante avant de proposer une nouvelle autorisation.
+- Calculer le montant nécessaire.
+- Vérifier le contrat destinataire.
+- Afficher le montant et la durée effective de l'autorisation.
+- Expliquer si l'autorisation restera active après la vente.
+- Prévoir un moyen de réduire ou révoquer les allowances lorsque cela est possible.
+
+Prends en compte les tokens qui nécessitent une allowance remise à zéro avant de définir une nouvelle valeur.
+
+Ne suppose pas que tous les ERC-20 respectent parfaitement les comportements standard.
+
+Ne propose Permit2 que si son fonctionnement est réellement compatible avec le token et le protocole concernés.
+
+L'approbation de plusieurs tokens ne doit être regroupée que si le mécanisme retenu permet réellement de modifier leurs allowances au nom du compte approprié.
+
+---
+
+# 13. BATCH EXECUTOR : CONTRAT INTELLIGENT
+
+Après l'audit de faisabilité, développe un contrat executor uniquement si cette architecture apporte un avantage réel.
+
+Si EIP-7702 est retenu, le code doit être conçu pour être utilisé dans le cadre exact du mécanisme de délégation et des transactions compatibles.
+
+Ne confonds pas un contrat executor classique avec le code délégué d'un compte EIP-7702.
+
+Le contrat ou code délégué doit respecter les exigences suivantes.
+
+## Contrôles
+
+- Destinations autorisées.
+- Fonctions autorisées.
+- Limites de taille des batches.
+- Limites de montants.
+- Validation des paramètres.
+- Contrôle des appels externes.
+- Gestion des échecs.
+- Événements permettant l'audit.
+- Protection contre les réentrances lorsque pertinente.
+- Protection contre les appels arbitraires.
+- Absence de fonction de retrait permettant à un tiers de récupérer les fonds de l'utilisateur.
+
+## Exécution
+
+Le système doit permettre de définir une liste explicite d'opérations.
+
+Chaque opération doit contenir :
+
+- Destination.
+- Données d'appel.
+- Valeur native éventuelle.
+- Limites de sécurité.
+- Politique d'échec.
+
+L'exécuteur ne doit pas accepter des appels arbitraires provenant d'une API non fiable.
+
+Le frontend ne doit pas constituer l'unique couche de sécurité.
+
+## Atomicité
+
+Le mode par défaut doit être atomique lorsque le mécanisme retenu le permet :
+
+Si une opération échoue, la transaction complète est annulée.
+
+Si un mode d'exécution partielle est développé, il doit être distinct, explicite et testé.
+
+## EIP-7702
+
+Si la délégation est retenue :
+
+- Documente précisément le mécanisme.
+- Explique comment la délégation est autorisée.
+- Identifie les limites de contrôle et de révocation.
+- Traite les risques liés au stockage et aux appels du code délégué.
+- Vérifie la compatibilité de chaque wallet pris en charge.
+- Ne promets pas une seule signature sans preuve expérimentale.
+
+Si le mécanisme n'est pas suffisamment maîtrisé ou testé, ne déploie pas de contrat de production.
+
+---
+
+# 14. MOTEUR DE SIMULATION
+
+Développe un module de simulation avant exécution.
+
+Il doit vérifier autant que possible :
+
+- Les soldes.
+- Les allowances.
+- Les destinations.
+- Les fonctions appelées.
+- Les montants attendus.
+- Les frais.
+- Le slippage.
+- Les erreurs de contrat.
+- Les interactions entre les opérations.
+- La possibilité d'une exécution atomique.
+
+Affiche les limites de la simulation.
+
+Une simulation réussie ne garantit pas le succès de la transaction réelle.
+
+Le système doit détecter les modifications importantes du plan entre la simulation et la confirmation.
+
+Si le plan change, demande une nouvelle validation de l'utilisateur.
+
+N'utilise pas une simple estimation de gas comme preuve de sécurité.
+
+---
+
+# 15. INTERFACE UTILISATEUR
+
+Crée une interface professionnelle, moderne, sobre et adaptée aux utilisateurs Web3.
+
+Le design doit être lisible sur ordinateur et Android.
+
+Évite les interfaces surchargées.
+
+## Écran 1 : Dashboard
+
+Afficher :
+
+- Wallet connecté.
+- Réseau.
+- Nombre de tokens identifiés.
+- Nombre de tokens compatibles.
+- Nombre de tokens nécessitant une autorisation.
+- État du système.
+- Bouton « Préparer une vente groupée ».
+
+## Écran 2 : Sélection des tokens
+
+Afficher :
+
+- Token.
+- Adresse abrégée.
+- Solde.
+- Quantité vendable lorsque cette information est vérifiable.
+- Allowance existante.
+- Statut de compatibilité.
+- Case de sélection.
+
+Permettre à l'utilisateur de sélectionner plusieurs tokens.
+
+Ne sélectionne jamais automatiquement tous les tokens pour une vente sans confirmation explicite.
+
+## Écran 3 : Préparation
+
+Afficher :
+
+- Liste des tokens sélectionnés.
+- Quantités.
+- Opérations d'autorisation nécessaires.
+- Opérations de vente.
+- Estimation du montant reçu.
+- Frais estimés.
+- Limites de slippage.
+- Risques identifiés.
+
+Permettre de retirer une opération avant confirmation.
+
+## Écran 4 : Simulation et confirmation
+
+Afficher le plan complet.
+
+Pour chaque opération, présenter :
+
+- Contrat cible.
+- Fonction appelée.
+- Montant.
+- Résultat attendu.
+- Risques.
+- État de la simulation.
+
+Le bouton de confirmation doit être désactivé si un contrôle critique échoue.
+
+Ne présente jamais un token non vérifié comme sûr.
+
+## Écran 5 : Résultats
+
+Afficher :
+
+- Transactions envoyées.
+- Hashes.
+- Statuts.
+- Tokens vendus.
+- Montants reçus lorsque vérifiables.
+- Échecs.
+- Autorisations restant actives.
+
+Fournir des liens vers un explorateur blockchain officiel du réseau concerné.
+
+---
+
+# 16. SÉCURITÉ
+
+Crée `docs/SECURITY.md`.
+
+Le document doit détailler les menaces et les mesures de protection.
+
+Prends notamment en compte :
+
+- Tokens malveillants.
+- Contrats de trading falsifiés.
+- Erreurs d'adresse.
+- Phishing.
+- Appels arbitraires.
+- Autorisations excessives.
+- Slippage excessif.
+- Front-running et sandwich attacks.
+- Changements d'état entre simulation et exécution.
+- Réentrance.
+- Transactions partielles.
+- Échec d'un seul appel dans un batch atomique.
+- Risques liés à EIP-7702.
+- Compromission d'une dépendance.
+- Erreurs de configuration.
+- RPC malveillant ou incohérent.
+- Erreurs de décodage des événements.
+- Mauvaise interprétation des résultats de transaction.
+
+Ne promets jamais une sécurité absolue.
+
+Ne prétends pas qu'une liste blanche rend automatiquement un contrat sûr.
+
+Une adresse de contrat doit être vérifiée et sa fonction exacte doit être connue.
+
+La configuration de production doit refuser les adresses de contrats non validées.
+
+Les clés RPC et les autres secrets ne doivent pas être intégrés au code source.
+
+Ne demande jamais la clé privée ou la phrase de récupération de l'utilisateur.
+
+---
+
+# 17. TESTS OBLIGATOIRES
+
+Crée des tests couvrant les cas suivants.
+
+## Tests fonctionnels
+
+1. Connexion d'un wallet.
+2. Mauvais réseau.
+3. Solde nul.
+4. Token compatible.
+5. Token non compatible.
+6. Allowance suffisante.
+7. Allowance insuffisante.
+8. Construction d'un batch de deux tokens.
+9. Simulation réussie.
+10. Simulation échouée.
+11. Confirmation rejetée.
+12. Transaction réussie.
+13. Transaction échouée.
+14. Mise à jour des soldes après exécution.
+
+## Tests de sécurité
+
+1. Adresse cible non autorisée.
+2. Fonction non autorisée.
+3. Paramètre malformé.
+4. Montant supérieur à la limite.
+5. Slippage supérieur au plafond.
+6. Appel externe malveillant.
+7. Échec d'une opération dans un batch atomique.
+8. Tentative de retrait non autorisé.
+9. Allowance supérieure au montant nécessaire.
+10. Changement du plan après simulation.
+11. Délégation incompatible ou absente.
+12. Révocation ou remplacement de délégation.
+
+Utilise des contrats de test pour reproduire les comportements pertinents.
+
+N'effectue pas de transactions réelles avec des fonds d'utilisateurs pour valider le fonctionnement initial.
+
+---
+
+# 18. INTÉGRATION AVEC BINANCE AGENTIC WALLET
+
+Crée `docs/BINANCE_INTEGRATION.md`.
+
+Explique les possibilités d'intégration réellement vérifiées.
+
+Sépare clairement :
+
+A. Fonctionnalités confirmées par la documentation officielle.
+
+B. Fonctionnalités testées en pratique.
+
+C. Fonctionnalités envisagées mais non vérifiées.
+
+D. Fonctionnalités impossibles avec les interfaces disponibles.
+
+Si Binance propose un mécanisme officiel de skills ou d'intégration, développe un adaptateur seulement après avoir vérifié son format et ses capacités.
+
+Le produit devrait permettre à un agent de demander la préparation d'un batch, sans lui donner automatiquement le droit de l'exécuter.
+
+Exemple de flux :
+
+Utilisateur :
+« Prépare la vente de ces tokens fourMeme. »
+
+Agent :
+- Identifie les tokens.
+- Demande la préparation du batch.
+- Présente le plan.
+- Expose les résultats de la simulation.
+- Soumet le plan au mécanisme de validation du wallet.
+
+L'utilisateur conserve le contrôle des opérations.
+
+N'invente pas de skill officielle Binance.
+
+Si l'intégration directe n'est pas disponible, documente un protocole d'intégration générique permettant à un wallet ou à un agent compatible d'utiliser le moteur.
+
+---
+
+# 19. CONFIGURATION ET VARIABLES D'ENVIRONNEMENT
+
+Crée un fichier `.env.example` documenté.
+
+Utilise des variables distinctes pour :
+
+- Le réseau de test.
+- Le réseau principal.
+- Les endpoints RPC.
+- Les paramètres d'indexation.
+- Les adresses de contrats vérifiées.
+- Les configurations de simulation.
+
+Ne place jamais de clé privée dans `.env.example`.
+
+Ne place aucune clé privée de production dans le frontend.
+
+Les paramètres critiques doivent être validés au démarrage.
+
+Si les adresses officielles ne sont pas encore vérifiées, le mode de production doit rester désactivé.
+
+---
+
+# 20. STRATÉGIE DE DÉVELOPPEMENT
+
+Travaille dans l'ordre suivant.
+
+## Étape 1 — Audit
+
+Créer les documents de faisabilité et de sécurité.
+
+Identifier les inconnues.
+
+Ne développe pas un contrat basé sur des hypothèses non vérifiées.
+
+## Étape 2 — Socle applicatif
+
+Créer le projet Next.js, configurer TypeScript, installer les dépendances et créer les modules.
+
+Vérifier le build.
+
+## Étape 3 — Connexion wallet
+
+Implémenter la connexion et la lecture des données on-chain.
+
+Tester avec un wallet compatible.
+
+## Étape 4 — Découverte des tokens
+
+Implémenter la lecture des soldes et des allowances.
+
+## Étape 5 — Adaptateur de protocole
+
+Implémenter le chemin de vente réel, après vérification des contrats.
+
+## Étape 6 — Batch Builder
+
+Créer les plans d'exécution.
+
+## Étape 7 — Simulation
+
+Simuler les opérations avant leur validation.
+
+## Étape 8 — Interface
+
+Construire les écrans de sélection, de préparation, de confirmation et de résultats.
+
+## Étape 9 — Contrats
+
+Si un executor est nécessaire, développer et tester les contrats sur un environnement de test.
+
+## Étape 10 — Intégration avancée
+
+Étudier EIP-7702 et l'intégration Binance.
+
+N'active que les fonctionnalités réellement prises en charge.
+
+## Étape 11 — Vérification finale
+
+Exécuter :
+
+- Les tests.
+- La compilation Solidity.
+- Le build frontend.
+- Le lint.
+- Les tests d'intégration disponibles.
+
+Corriger les erreurs.
+
+---
+
+# 21. CONDITIONS DE LIVRAISON
+
+Le projet ne sera considéré comme terminé que si les livrables suivants existent.
+
+1. Application frontend fonctionnelle.
+2. Connexion wallet opérationnelle avec au moins un wallet compatible.
+3. Module de lecture des tokens.
+4. Module de lecture des allowances.
+5. Adaptateur de protocole documenté.
+6. Batch Builder.
+7. Simulation.
+8. Interface de confirmation.
+9. Rapport des résultats.
+10. Tests automatisés.
+11. Documentation d'installation.
+12. Documentation d'architecture.
+13. Documentation de sécurité.
+14. Rapport de compatibilité Binance.
+15. Instructions de déploiement.
+16. Liste claire des fonctionnalités non implémentées.
+
+Si le chemin de vente fourMeme n'a pas pu être vérifié, l'application doit fonctionner en mode démonstration ou test et afficher explicitement cette limitation.
+
+Ne simule pas une vente réelle.
+
+Ne présente pas une transaction préparée comme une transaction exécutée.
+
+Ne présente pas une intégration Binance hypothétique comme une fonctionnalité opérationnelle.
+
+---
+
+# 22. PRIORITÉ ABSOLUE
+
+Le but n'est pas de produire le plus de code possible.
+
+Le but est de créer un produit réellement utile et techniquement valide.
+
+Priorités :
+
+1. Faisabilité démontrée.
+2. Sécurité.
+3. Fonctionnement correct.
+4. Réduction mesurable des transactions et confirmations.
+5. Compatibilité wallet.
+6. Expérience utilisateur.
+7. Évolutivité.
+8. Préparation à une éventuelle commercialisation.
+
+Ne développe pas un système de trading automatique ou de gestion discrétionnaire des fonds.
+
+Ne demande pas à l'utilisateur d'abandonner ses protections de sécurité.
+
+Ne crée pas de mécanisme permettant à un tiers de déplacer librement les fonds de l'utilisateur.
+
+Ne déploie aucun contrat sur le réseau principal sans validation explicite.
+
+---
+
+# 23. PREMIÈRE ACTION
+
+Commence maintenant par :
+
+1. Examiner l'environnement de travail et les fichiers existants.
+2. Identifier les outils réellement disponibles.
+3. Vérifier la documentation officielle pertinente.
+4. Produire `docs/FEASIBILITY.md`.
+5. Proposer une architecture technique justifiée.
+6. Identifier les blocages techniques.
+7. Implémenter le MVP par étapes, sans attendre une nouvelle instruction pour les tâches ordinaires que tu peux effectuer en toute sécurité.
+8. Exécuter les tests et corriger les erreurs.
+9. Fournir un rapport final honnête sur ce qui fonctionne, ce qui a été testé et ce qui reste à faire.
+
+Ne t'arrête pas à un plan si tu disposes des moyens nécessaires pour réaliser le travail.
+
+Si une information critique manque, explique précisément laquelle, implémente les parties indépendantes de cette information et bloque uniquement les opérations qui nécessitent réellement cette validation.

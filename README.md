@@ -79,18 +79,19 @@ npm test
 ```
 
 ### Résultats des Tests
-* **Foundry Tests** : **33 passés, 0 échoué, 0 ignoré** (100% de réussite).
-* **TypeScript Tests** : **26 passés sur 26**.
+* **TypeScript Tests** : **26 passés sur 26** vérifiés (`npm test` / `npm run test:ts`).
+* **Foundry Tests** : **33 tests unitaires et d'invariants** rédigés dans `contracts/test/BatchSellExecutor.t.sol` (exécutables avec la CLI Foundry locale via `forge test -vvv`).
 * **Linter TypeScript** : `tsc --noEmit` sans aucune erreur.
 
 ---
 
-## 5. Documentation Détaillée
+## 5. Documentation Détaillée & Dossier de Candidature
 
+* 📁 **[Dossier de Candidature Grant (Subvention)](./docs/grant-application/README.md)** : Dossier complet et transparent (vue d'ensemble, architecture & revue technique interne, protocole de benchmark, budget indicatif de 20 000 $, script vidéo bilingue et checklist).
 * [`docs/FEASIBILITY.md`](./docs/FEASIBILITY.md) : Analyse technique de fourMeme, limitation de Multicall3 et étude EIP-7702.
 * [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) : Schéma des flux de données et architecture modulaire.
-* [`docs/SECURITY.md`](./docs/SECURITY.md) : Matrice des menaces et mesures de mitigation.
-* [`docs/TESTING.md`](./docs/TESTING.md) : Matrice exhaustive des 33 tests Foundry et des mocks.
+* [`docs/SECURITY.md`](./docs/SECURITY.md) : Politique de sécurité et revue technique interne.
+* [`docs/TESTING.md`](./docs/TESTING.md) : Matrice des 33 tests Foundry et des mocks.
 * [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md) : Guide de déploiement et paramètres de constructeur.
 * [`docs/KNOWN_LIMITATIONS.md`](./docs/KNOWN_LIMITATIONS.md) : Frontières techniques et statut d'authentification.
 * [`docs/BINANCE_INTEGRATION.md`](./docs/BINANCE_INTEGRATION.md) : Rapport d'intégration Binance AI Pro et Agentic Wallet.

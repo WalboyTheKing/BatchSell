@@ -8,20 +8,28 @@ Ce document détaille la méthodologie de test, la structure des contrats mocks 
 
 Le projet utilise **Foundry** (`forge`) pour la validation unitaire et de sécurité des smart contracts Solidity, complété par une suite TypeScript pour les tests d'intégration du moteur client.
 
-### Commandes d'exécution
+### Commandes d'exécution et Environnements
 
+#### 1. Suite TypeScript (Intégration & Sécurité Moteur Client - 26 Cas)
+Exécutable directement dans tout environnement Node.js :
 ```bash
-# Compiler les smart contracts et les mocks
+npm test
+# ou équivalent :
+npm run test:ts
+```
+*Résultat vérifié : 26 passés sur 26 (0 échec).*
+
+#### 2. Suite Foundry Solidity (Smart Contracts & Invariants - 33 Cas)
+Située dans `contracts/test/BatchSellExecutor.t.sol`. Requiert l'outil CLI Foundry (`forge`) installé sur la machine :
+```bash
+# Installation de Foundry (si non présent) :
+curl -L https://foundry.paradigm.xyz | bash && foundryup
+
+# Compilation des smart contracts et des mocks :
 forge build
 
-# Exécuter les 33 tests Foundry avec traces d'exécution complètes
+# Exécution des 33 tests avec traces d'exécution complètes :
 forge test -vvv
-
-# Exécuter la suite de tests TypeScript du moteur d'intégration
-npm run test:ts
-
-# Exécuter les deux suites
-npm test
 ```
 
 ---

@@ -44,6 +44,7 @@ export default function App() {
   const [simulation, setSimulation] = useState<SimulationSummary | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
   const [receipts, setReceipts] = useState<ExecutionReceipt[]>([]);
+  const [executionError, setExecutionError] = useState<string | null>(null);
   
   // Test suite results
   const [testResults, setTestResults] = useState<TestCaseResult[]>([]);
@@ -244,7 +245,8 @@ export default function App() {
       // Move to Receipts view
       setActiveTab('receipts');
     } catch (err: any) {
-      alert(`Erreur d'exécution: ${err.message || 'Transaction annulée'}`);
+      console.error('Execution error:', err);
+      setExecutionError(err?.message || 'Transaction annulée ou rejetée');
     } finally {
       setIsExecuting(false);
     }
@@ -276,6 +278,21 @@ export default function App() {
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {executionError && (
+          <div className="mb-6 p-4 rounded-xl bg-rose-950/70 border border-rose-800 text-rose-200 flex items-center justify-between shadow-lg">
+            <div className="flex items-center gap-3">
+              <span className="font-semibold text-rose-300">Erreur d'exécution:</span>
+              <span>{executionError}</span>
+            </div>
+            <button
+              onClick={() => setExecutionError(null)}
+              className="text-xs px-3 py-1 bg-rose-900/60 hover:bg-rose-800 text-rose-200 rounded border border-rose-700/50 transition-colors"
+            >
+              Fermer
+            </button>
+          </div>
+        )}
+
         {activeTab === 'dashboard' && (
           <DashboardView
             tokens={tokens}
@@ -365,10 +382,10 @@ export default function App() {
           <div className="flex items-center space-x-4">
             <span className="text-emerald-400 font-mono">100% Non-Custodial</span>
             <span>•</span>
-            <span className="text-amber-400 font-mono">Anti-MEV Slippage Guard</span>
+            <span className="text-amber-400 font-mono">Contrôle de Slippage & Anti-Cross-Subsidization</span>
             <span>•</span>
             <button onClick={() => setActiveTab('docs')} className="hover:text-white underline">
-              Spécifications & Audits
+              Spécifications & Revue Technique
             </button>
           </div>
         </div>

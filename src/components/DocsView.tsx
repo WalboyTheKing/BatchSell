@@ -44,10 +44,10 @@ export const DocsView: React.FC<DocsViewProps> = ({
         <div>
           <h2 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight flex items-center space-x-2">
             <FileText className="w-6 h-6 text-amber-400" />
-            <span>Centre d'Audit, Tests & Spécifications</span>
+            <span>Centre de Revue Technique, Tests & Spécifications</span>
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Documentation technique officielle, tests de sécurité automatisés et code source auditable.
+            Documentation technique officielle, tests de validation automatisés et revue technique interne.
           </p>
         </div>
 
@@ -415,21 +415,23 @@ export const DocsView: React.FC<DocsViewProps> = ({
           <div className="border-b border-slate-800 pb-3 flex items-center justify-between">
             <div>
               <h3 className="text-base font-bold text-white">Extrait : TESTING.md</h3>
-              <p className="text-[11px] text-slate-400 mt-1">26 tests unitaires et de sécurité Foundry + validation TypeScript</p>
+              <p className="text-[11px] text-slate-400 mt-1">33 tests unitaires et de sécurité Foundry + 26 tests d'intégration TypeScript vérifiés</p>
             </div>
             <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded font-mono font-semibold">
-              Foundry v1.8.6
+              TypeScript 26/26 [PASS]
             </span>
           </div>
 
           <div className="space-y-3 leading-relaxed">
             <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 font-mono text-[11px] text-amber-300">
-              $ forge test -vvv<br />
-              Ran 26 tests for contracts/test/BatchSellExecutor.t.sol:BatchSellExecutorComprehensiveTest<br />
-              [PASS] 26 tests passed, 0 failed, 0 skipped
+              $ npm run test:ts<br />
+              Running TypeScript integration and security test suite...<br />
+              Passed: 26 / 26 tests (14 fonctionnels, 12 sécurité)<br /><br />
+              $ forge test -vvv (requiert environnement Foundry local)<br />
+              Suite contracts/test/BatchSellExecutor.t.sol: 33 tests rédigés
             </div>
             <p>
-              La suite comprend 14 tests fonctionnels (déploiement, whitelisting, slippage, allowances, batches atomiques, reverts, réceptions) et 12 tests de sécurité critiques (attaques reentrancy, appels administratifs non autorisés, routeurs malveillants, cross-subsidization de slippage, tokens non standards type USDT, échecs de transferts BNB natif, limites de taille de batch et isolation des utilisateurs).
+              La suite TypeScript intégrée valide 14 cas fonctionnels et 12 contrôles de sécurité. La suite Solidity (33 tests unitaires et d'invariants) couvre la réentrance, l'absence de solde résiduel, le support fee-on-transfer et la résistance aux attaques de slippage croisé.
             </p>
           </div>
         </div>

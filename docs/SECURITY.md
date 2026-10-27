@@ -1,11 +1,13 @@
-# POLITIQUE ET AUDIT DE SÉCURITÉ : BATCHSELL
+# POLITIQUE DE SÉCURITÉ ET REVUE TECHNIQUE INTERNE : BATCHSELL
+
+> **Note de Transparence :** Ce document constitue une revue technique interne et non un rapport d'audit indépendant certifié par un tiers. L'audit indépendant constitue une étape prévue dans notre feuille de route avant tout déploiement sur le réseau principal avec des fonds réels.
 
 ## 1. MENACES IDENTIFIÉES ET MESURES DE PROTECTION
 
 ### 1.1. Tokens Malveillants & Honeypots
 - **Menace :** Des créateurs de faux tokens créent des contrats ERC-20 où les fonctions de transfert ou de vente sont bloquées (honeypots), ou appliquent une taxe de vente de 99%.
 - **Protection BatchSell :**
-  - Audit pré-vol (simulation de vente) avec calcul effectif du delta de BNB reçu.
+  - Revue pré-vol (simulation de vente via `eth_call`) avec calcul effectif du delta de BNB reçu.
   - Détection automatique des taxes de vente supérieures à 10%.
   - Alerte visuelle immédiate et blocage du token dans le batch si une condition de revert est détectée.
   - Badge de vérification : Seuls les tokens indexés avec liquidité prouvée ou vérifiés manuellement peuvent être inclus sans avertissement renforcé.
@@ -22,13 +24,15 @@
   - Politique de montants stricts par défaut : L'approbation proposée correspond exactement au montant de tokens mis en vente (`exact amount`).
   - Bouton de révocation d'allowance intégré directement dans l'interface post-exécution.
 
-### 1.4. Slippage et Front-Running (Attaques Sandwich / MEV)
+### 1.4. Contrôles de Slippage & Front-Running (Attaques Sandwich / MEV)
 - **Menace :** Les transactions de vente sur les bonding curves et AMMs de memecoins sont vulnérables aux bots MEV observant le mempool BSC.
-- **Protection BatchSell :**
+- **Ce que fait la protection BatchSell :**
   - Seuil de slippage paramétrable par l'utilisateur (défaut : 2.0%, max configurable : 10.0%).
   - Le contrat `BatchSellExecutor` applique deux niveaux de vérification :
-    1. Slippage individuel par token (`minBnbExpected`).
-    2. Slippage global agrégé sur le lot total (`minTotalBnbOut`). Si le marché bouge défavorablement, la transaction complète revert avant de subir une perte anormale.
+    1. Slippage individuel par token (`minBnbExpected`), prévenant le subventionnement croisé entre tokens.
+    2. Slippage global agrégé sur le lot total (`minTotalBnbOut`). Si le marché bouge défavorablement au-delà du seuil toléré, la transaction complète revert avant de subir une perte anormale.
+- **Ce que la protection ne fait PAS (Précision MEV) :**
+  - Les contrôles de slippage ne garantissent pas l'absence d'extraction de valeur par des bots MEV si le slippage autorisé laisse une marge de profit au bot dans le mempool public. Seul le routage via un RPC privé anti-MEV permet de masquer la transaction aux observateurs du mempool public.
 
 ### 1.5. Atomicité et Échecs Partiels
 - **Menace :** Dans un batch séquentiel, si le token 1 est vendu mais le token 2 échoue, l'utilisateur se retrouve dans un état incomplet avec des frais de gas dépensés en pure perte.

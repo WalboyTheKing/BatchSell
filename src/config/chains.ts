@@ -63,7 +63,7 @@ export interface RegisteredToken {
 
 export const INITIAL_REGISTERED_TOKENS: RegisteredToken[] = [
   {
-    address: '0x8b3236e771E8F29e7BE69741D8B4e24D0F80f684',
+    address: '0x8b3236e771e8f29E7be69741D8b4e24D0F80F684',
     symbol: 'BINANCECAT',
     name: 'Binance Cat Meme',
     decimals: 18,
@@ -77,7 +77,7 @@ export const INITIAL_REGISTERED_TOKENS: RegisteredToken[] = [
     riskFlags: ['Bonding curve active', 'Zero prior allowance (safe)'],
   },
   {
-    address: '0x22c2a938F17A9FaD805B5B8418080C0B08709335',
+    address: '0x22c2A938f17A9FAD805B5B8418080C0B08709335',
     symbol: 'AGENTPEPE',
     name: 'Agentic AI Pepe',
     decimals: 18,
@@ -91,7 +91,7 @@ export const INITIAL_REGISTERED_TOKENS: RegisteredToken[] = [
     riskFlags: ['Bonding curve active', 'Existing allowance available'],
   },
   {
-    address: '0x1F9840a85d5aF5bf1D1762F925BDADdC4201F984',
+    address: '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984',
     symbol: 'MEMEAI',
     name: 'Memetic Intelligence',
     decimals: 18,

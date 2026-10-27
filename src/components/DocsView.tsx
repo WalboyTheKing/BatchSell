@@ -25,7 +25,7 @@ export const DocsView: React.FC<DocsViewProps> = ({
   isRunningTests,
   onRunTests,
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'tests' | 'feasibility' | 'architecture' | 'security' | 'binance' | 'contract'>('tests');
+  const [activeSubTab, setActiveSubTab] = useState<'tests' | 'feasibility' | 'architecture' | 'security' | 'binance' | 'testing_doc' | 'deployment' | 'limitations' | 'contract'>('tests');
   const [testFilter, setTestFilter] = useState<'all' | 'functional' | 'security'>('all');
 
   const filteredTests = testResults.filter((t) => {
@@ -126,6 +126,39 @@ export const DocsView: React.FC<DocsViewProps> = ({
           }`}
         >
           Binance Agentic (BINANCE_INTEGRATION.md)
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab('testing_doc')}
+          className={`px-3 py-2 rounded-lg font-semibold transition ${
+            activeSubTab === 'testing_doc'
+              ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+              : 'text-slate-400 hover:text-white hover:bg-slate-800'
+          }`}
+        >
+          Guide Tests (TESTING.md)
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab('deployment')}
+          className={`px-3 py-2 rounded-lg font-semibold transition ${
+            activeSubTab === 'deployment'
+              ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+              : 'text-slate-400 hover:text-white hover:bg-slate-800'
+          }`}
+        >
+          Déploiement (DEPLOYMENT.md)
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab('limitations')}
+          className={`px-3 py-2 rounded-lg font-semibold transition ${
+            activeSubTab === 'limitations'
+              ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+              : 'text-slate-400 hover:text-white hover:bg-slate-800'
+          }`}
+        >
+          Limites Connues (KNOWN_LIMITATIONS.md)
         </button>
 
         <button
@@ -372,6 +405,79 @@ export const DocsView: React.FC<DocsViewProps> = ({
             <p>
               L'audit confirme qu'il n'existe pas de package propriétaire public officiel à importer. Créer un faux connecteur ou prétendre à une API fermée enfreindrait les principes de sécurité. BatchSell fournit une interface d'intention standardisée permettant à un agent IA ou à l'utilisateur de soumettre un lot atomique vérifié.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Testing Guide */}
+      {activeSubTab === 'testing_doc' && (
+        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 text-xs text-slate-300 space-y-4 max-w-4xl">
+          <div className="border-b border-slate-800 pb-3 flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-bold text-white">Extrait : TESTING.md</h3>
+              <p className="text-[11px] text-slate-400 mt-1">26 tests unitaires et de sécurité Foundry + validation TypeScript</p>
+            </div>
+            <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded font-mono font-semibold">
+              Foundry v1.8.6
+            </span>
+          </div>
+
+          <div className="space-y-3 leading-relaxed">
+            <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 font-mono text-[11px] text-amber-300">
+              $ forge test -vvv<br />
+              Ran 26 tests for contracts/test/BatchSellExecutor.t.sol:BatchSellExecutorComprehensiveTest<br />
+              [PASS] 26 tests passed, 0 failed, 0 skipped
+            </div>
+            <p>
+              La suite comprend 14 tests fonctionnels (déploiement, whitelisting, slippage, allowances, batches atomiques, reverts, réceptions) et 12 tests de sécurité critiques (attaques reentrancy, appels administratifs non autorisés, routeurs malveillants, cross-subsidization de slippage, tokens non standards type USDT, échecs de transferts BNB natif, limites de taille de batch et isolation des utilisateurs).
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Deployment Guide */}
+      {activeSubTab === 'deployment' && (
+        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 text-xs text-slate-300 space-y-4 max-w-4xl">
+          <div className="border-b border-slate-800 pb-3">
+            <h3 className="text-base font-bold text-white">Extrait : DEPLOYMENT.md</h3>
+            <p className="text-[11px] text-slate-400 mt-1">Paramètres de déploiement et adresses de vérification sur BSC</p>
+          </div>
+
+          <div className="space-y-3 leading-relaxed">
+            <h4 className="font-bold text-amber-400 text-sm">Paramètres Constructeur</h4>
+            <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 font-mono text-[11px] text-slate-300">
+              constructor(address _initialOwner, address _fourMemeRouter, address _pancakeRouter, bool _enableFourMeme)
+            </div>
+            <p>
+              Sur BSC Mainnet, le déploiement active par défaut PancakeSwap V2 Router (<code className="font-mono text-amber-300">0x10ED43C718714eb63d5aA57B78B54704E256024E</code>) et conserve l'interrupteur <code className="font-mono text-amber-300">allowFourMemeExecution</code> à <code className="font-mono text-rose-400">false</code> tant que l'ABI officielle de production n'a pas été confirmée.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Known Limitations */}
+      {activeSubTab === 'limitations' && (
+        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 text-xs text-slate-300 space-y-4 max-w-4xl">
+          <div className="border-b border-slate-800 pb-3">
+            <h3 className="text-base font-bold text-white">Extrait : KNOWN_LIMITATIONS.md</h3>
+            <p className="text-[11px] text-slate-400 mt-1">Transparence technique totale sur les intégrations réelles vs non-vérifiées</p>
+          </div>
+
+          <div className="space-y-3 leading-relaxed">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                <span className="font-bold text-emerald-400">PancakeSwap V2 DEX : Opérationnel</span>
+                <p className="text-slate-400 text-[11px] mt-1">
+                  Les tokens diplômés disposant de liquidité sont vendus via le routeur officiel vérifié.
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                <span className="font-bold text-amber-400">FourMeme Curve : Isolée / Sécurisée</span>
+                <p className="text-slate-400 text-[11px] mt-1">
+                  L'exécution sur la bonding curve non-officiellement attestée est soumise à un interrupteur administratif pour éviter toute perte de fonds.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -259,7 +259,7 @@ contract MockReentrantAttacker {
 }
 
 // ==========================================
-// TEST SUITE: 14 FUNCTIONAL + 12 SECURITY
+// TEST SUITE: 14 FUNCTIONAL + 19 SECURITY (33 TOTAL)
 // ==========================================
 
 contract BatchSellExecutorComprehensiveTest is Test {
@@ -610,7 +610,7 @@ contract BatchSellExecutorComprehensiveTest is Test {
     }
 
     // ----------------------------------------------------------------
-    // 12 SECURITY TESTS
+    // 19 SECURITY TESTS
     // ----------------------------------------------------------------
 
     // 15. Tentative de réentrance

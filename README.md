@@ -18,15 +18,21 @@ Le système propose deux modes d'exécution :
 
 ## 2. Architecture des Smart Contracts
 
-### `contracts/src/BatchSellExecutor.sol`
+### Source de Vérité Canonique
+* **Contrat Canonique** : `contracts/src/BatchSellExecutor.sol` (défini par `src = "contracts/src"` dans `foundry.toml`).
+* **Suite de Tests Canonique** : `contracts/test/BatchSellExecutor.t.sol` (défini par `test = "contracts/test"` dans `foundry.toml`).
+* **Suppression des Fichiers Miroirs** : Les fichiers redondants à la racine de `/contracts/` (`contracts/BatchSellExecutor.sol` et `contracts/BatchSellExecutor.t.sol`) ont été supprimés pour garantir une source de vérité unique et inaltérable.
+
+### Spécifications Techniques du Contrat
 * **Sécurité & Dépendances** : Construit sur **OpenZeppelin Contracts v5** (`ReentrancyGuard`, `SafeERC20`, `Ownable`).
-* **Non-Custodial Strict** : Le contrat ne conserve aucun token ni BNB. 100% des BNB générés sont transférés au destinataire dans la même transaction.
-* **Support des Tokens à Frais (Fee-On-Transfer)** : Mesure dynamique de la balance avant et après transfert pour garantir une compatibilité sans échec avec les memecoins à taxe de transfert sur BSC.
+* **Non-Custodial Strict** : Le contrat ne conserve aucun token ni BNB résiduel. 100% des BNB générés sont transférés au destinataire dans la même transaction.
+* **Support des Tokens à Taxe (Fee-On-Transfer)** : Mesure dynamique du solde réel reçu (`actualTokensReceived = tokenBalAfter - tokenBalBefore`) avant de router l'ordre, assurant une exécution sans échec avec les memecoins à taxe sur BSC.
 * **Double Protection de Slippage** :
-  - **Slippage Individuel** : Mesure du delta de BNB généré par chaque ordre pour empêcher qu'un gain sur un token ne masque une perte sur un autre.
+  - **Slippage Individuel Strict** : Mesure du delta de BNB généré par chaque ordre pour empêcher qu'un gain sur un token ne masque une perte par slippage sur un autre (anti cross-subsidization).
   - **Slippage Global** : Contrôle du montant net total reçu (`totalBnbReceived >= minTotalBnbOut`).
 * **Protection contre les Dépôts Directs** : La fonction `receive()` rejette tout envoi direct de BNB en dehors d'une exécution de swap active (`DirectBnbDepositNotAllowed`).
 * **Plafond de Sécurité** : Taille de lot limitée à 25 opérations (`MAX_BATCH_SIZE`) pour prévenir les dépassements de limite de gas par bloc.
+* **Hygiène des Allowances** : Réinitialisation systématique de l'approbation du routeur à 0 (`forceApprove(router, 0)`) après chaque vente.
 
 ---
 

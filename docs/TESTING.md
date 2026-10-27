@@ -14,7 +14,7 @@ Le projet utilise **Foundry** (`forge`) pour la validation unitaire et de sécur
 # Compiler les smart contracts et les mocks
 forge build
 
-# Exécuter les 26 tests Foundry avec traces d'exécution complètes
+# Exécuter les 33 tests Foundry avec traces d'exécution complètes
 forge test -vvv
 
 # Exécuter la suite de tests TypeScript du moteur d'intégration
@@ -26,7 +26,7 @@ npm test
 
 ---
 
-## 2. MATRICE DES TESTS DE VALIDATION (26 CAS)
+## 2. MATRICE DES TESTS DE VALIDATION (33 CAS)
 
 ### 2.1. Tests Fonctionnels (14 Cas)
 
@@ -47,7 +47,7 @@ npm test
 | `test_13` | `test_13_Transfer_RevertOnFailingToken` | Vérifie la gestion d'erreur SafeERC20 sur un token dont les transferts échouent. |
 | `test_14` | `test_14_Events_BatchExecutedEmission` | Vérifie l'émission de l'événement `BatchExecuted` avec les paramètres exacts. |
 
-### 2.2. Tests de Sécurité (12 Cas)
+### 2.2. Tests de Sécurité (19 Cas)
 
 | ID | Nom du Test | Description & Assertion |
 | :--- | :--- | :--- |
@@ -63,6 +63,13 @@ npm test
 | `test_24` | `test_24_Security_ArbitraryTransferBlocked` | Impossibilité pour un utilisateur de liquider les tokens d'un tiers sans son accord direct. |
 | `test_25` | `test_25_Security_UserIsolation` | Prouve que les autorisations accordées par Bob ne peuvent en aucun cas être exploitées lors d'un batch d'Alice. |
 | `test_26` | `test_26_Security_ZeroResidualContractBalance` | **Invariant de conservation absolue** : Le contrat `BatchSellExecutor` conserve strictement 0 BNB et 0 token résiduel. |
+| `test_27` | `test_27_Security_FeeOnTransferTokenHandledCorrectly` | Mesure du solde réel pour les tokens à taxe de transfert (`actualTokensReceived`), prévenant les échecs de swap. |
+| `test_28` | `test_28_Security_DirectBnbDepositReverts` | Rejet strict des envois directs de BNB via `receive()` en dehors de l'exécution d'un swap (`DirectBnbDepositNotAllowed`). |
+| `test_29` | `test_29_Security_FourMemeDisabledRevert` | Vérifie le revert `FourMemeExecutionDisabled` lorsque le flag `allowFourMemeExecution` est à false en production. |
+| `test_30` | `test_30_Security_EmptyBatchRevert` | Rejet systématique avec `EmptyBatch` si un tableau vide est transmis. |
+| `test_31` | `test_31_Security_DeadlineExpiredRevert` | Rejet avec `DeadlineExpired` si la deadline passée en paramètre est déjà écoulée. |
+| `test_32` | `test_32_Security_ZeroAmountRevert` | Rejet avec `ZeroAmountProvided` si le montant d'un ordre dans le batch est nul. |
+| `test_33` | `test_33_Security_PreExistingContractBalancePreserved` | Vérifie que les BNB natifs préexistants dans le contrat ne sont pas siphonnés ni mélangés avec le swap courant. |
 
 ---
 
@@ -72,6 +79,7 @@ Les contrats mocks utilisés sont situés dans `contracts/test/BatchSellExecutor
 - `MockERC20` : Implémentation standard avec décimales et contrôle d'allowance.
 - `MockFailingERC20` : Simule un token défaillant renvoyant `false` lors des transferts.
 - `MockNonStandardERC20` : Simule un token ne retournant pas de booléen (style USDT).
+- `MockFeeOnTransferERC20` : Simule un token appliquant une taxe de transfert (ex: 5%) avec diminution du montant effectif reçu.
 - `MockFourMemeRouter` : Simule la fonction de vente de courbe `sellToken(address,uint256,uint256)`.
 - `MockPancakeRouter` : Simule le routeur PancakeSwap V2 `swapExactTokensForETHSupportingFeeOnTransferTokens`.
 - `MockRejectingRecipient` : Contrat sans fonction `receive()`, refusant tout BNB natif.

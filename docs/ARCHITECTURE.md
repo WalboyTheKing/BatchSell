@@ -108,10 +108,20 @@ BatchSell résout la friction des ventes répétées de tokens ERC-20 / fourMeme
 
 ---
 
-## 3. CONTRAT ON-CHAIN : `BatchSellExecutor.sol`
+## 3. CONTRAT ON-CHAIN : `contracts/src/BatchSellExecutor.sol`
+
+### Source Canonique :
+Le contrat unique canonique se situe dans `contracts/src/BatchSellExecutor.sol` (configuré via `foundry.toml`).
 
 ### Spécifications :
-1. **Non-custodial strict :** Le contrat ne conserve AUCUN fond. Tous les BNB perçus lors des ventes sont renvoyés au `msg.sender` dans la même transaction.
-2. **ReentrancyGuard :** Protection absolue contre les réentrances.
-3. **Whitelist de routeurs autorisés :** Seuls les contrats officiels vérifiés de fourMeme et PancakeSwap sont appelables.
-4. **Slippage minimum global :** Paramètre `minTotalBnbOut` garantissant que le montant total net reçu correspond au minimum acceptable.
+1. **Non-custodial strict :** Le contrat ne conserve AUCUN fond. Tous les BNB perçus lors des ventes sont renvoyés au `recipient` dans la même transaction.
+2. **ReentrancyGuard OpenZeppelin v5 :** Protection absolue contre les réentrances.
+3. **SafeERC20 :** Transferts sécurisés et support des tokens non standards (sans valeur de retour booléenne, ex: USDT).
+4. **Support Fee-on-Transfer :** Calcul dynamique du montant net reçu (`tokenBalAfter - tokenBalBefore`) avant de passer l'ordre au DEX.
+5. **Whitelist de routeurs autorisés :** Seuls les contrats officiels vérifiés de fourMeme et PancakeSwap sont appelables.
+6. **Double protection de slippage :** 
+   - Vérification individuelle par token (`minBnbExpected`) anti-cross-subsidization.
+   - Vérification globale agrégée (`minTotalBnbOut`).
+7. **Hygiène des allowances :** Révocation automatique de l'approbation à 0 après chaque ordre.
+8. **Rejet des BNB directs :** Rejet de tout BNB natif envoyé directement hors exécution de swap.
+9. **Plafond de lot :** Limité à 25 opérations maximum par lot (`MAX_BATCH_SIZE`).

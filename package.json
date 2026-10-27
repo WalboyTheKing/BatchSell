@@ -12,7 +12,7 @@
     "compile:sol": "forge build",
     "test:sol": "forge test -vvv",
     "test:ts": "tsx -e \"import('./src/test/batchSell.test.ts').then(m => m.runAllTests()).then(r => console.log('Passed:', r.filter(x => x.passed).length, '/', r.length))\"",
-    "test": "forge test -vvv"
+    "test": "forge test -vvv && npm run test:ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
